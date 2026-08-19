@@ -22,3 +22,45 @@ export const runCrawl = (req: Request , res:Response)=>{
 
     console.log("CrawlAgent.run( ) called");
 }
+
+export const getFindings = (req: Request , res : Response)=>{
+    const siteId = String(req.params.id);
+    let findings = crawlAgent.getFindings(siteId);
+    
+    //Filters
+    const {type , severity , pageUrl} = req.query
+    if(type){
+        findings = findings.filter(
+            finding => finding.type === String(type)
+        );
+    }
+    if(severity){
+        findings = findings.filter(
+            finding => finding.severity === String(severity)
+        )
+    }
+    if(pageUrl){
+        findings = findings.filter(
+            findings => findings.pageUrl === String(pageUrl)
+        );
+    }
+    //Pagination
+    const page = Math.max(Number(req.query.page) || 1 , 1);
+    const limit = Math.max(Number(req.query.limit) || 10 , 1);
+    const total = findings.length ;
+    const start =(page - 1)* limit ;
+    const end = start + limit;
+    const paginatedFindings = findings.slice(start , end);
+
+    res.status(200).json({
+        siteId ,
+        page ,
+        limit ,
+        total ,
+        totalPages : Math.ceil(total / limit),
+        findings: paginatedFindings
+    });
+
+
+
+};

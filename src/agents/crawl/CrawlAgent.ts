@@ -2,8 +2,9 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { Finding } from "@/types/finding";
 export class CrawlAgent {
+    private findingsBySite = new Map<string, Finding[]>();
     async run(siteId : string ,jobId :string ){
-
+         
         console.log("CRAWL AGENT CALLED");
         console.log("SITE ID :" , siteId);
         console.log(`Job ID : ${jobId}`);
@@ -24,8 +25,10 @@ export class CrawlAgent {
             const linkFindings = await this.checkLinks(url, links)
             
             findings.push(...linkFindings);
-
-   
+            
+            this.findingsBySite.set(siteId,findings);
+            
+            
 
              console.log("Findings :");
              console.log(findings);
@@ -38,6 +41,9 @@ export class CrawlAgent {
         catch(error){
             console.error("Crawl error:" , error);
         }
+    }
+    getFindings(siteId:string):Finding[]{
+        return this.findingsBySite.get(siteId)?? [];
     }
     private analyzeHtml(pageUrl: string , html : string):{
         findings : Finding[];
@@ -115,10 +121,10 @@ export class CrawlAgent {
             if(structuredData.length === 0){
                 findings.push({
                     pageUrl,
-                    type:"STRUCT_DATA",
+                    type:"STRUCTURED_DATA",
                     severity: "warning",
                     message : "No JSON-LD structured data found"
-                });
+                })
             } else {
                 findings.push({
                     pageUrl,
@@ -127,22 +133,7 @@ export class CrawlAgent {
                     message: `Page contains ${structuredData.length} JSON-LD block(s)`
                 });
             }
-            //FAQ
-            if (structuredData.length > 0){
-                findings.push({
-                    pageUrl ,
-                    type : "STRUCTURED_DATA",
-                    severity : "info",
-                    message :` Page contains ${structuredData.length} JSON-LD block (s)`
-                });
-            } else {
-                findings.push({
-                    pageUrl , 
-                    type : "STRUCTURED_DATA",
-                    severity: "warning",
-                    message : "No JSON-LD structured data found"
-                });
-            }
+
                       let hasFaq = false ;
                       for (const data of structuredData){
                         try {
