@@ -41,7 +41,7 @@ export const getFindings = (req: Request , res : Response)=>{
     }
     if(pageUrl){
         findings = findings.filter(
-            findings => findings.pageUrl === String(pageUrl)
+            finding=> finding.pageUrl === String(pageUrl)
         );
     }
     //Pagination

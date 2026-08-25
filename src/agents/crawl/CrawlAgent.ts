@@ -31,7 +31,7 @@ export class CrawlAgent {
             
 
              console.log("Findings :");
-             console.log(findings);
+             console.log(findings) ;
              return findings ;
     
     
