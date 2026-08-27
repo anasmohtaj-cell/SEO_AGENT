@@ -1,6 +1,5 @@
 import { Request , Response } from "express";
-import {CrawlAgent} from "@/agents/crawl/CrawlAgent";
-const crawlAgent = new CrawlAgent();
+import { crawlAgent } from "@/services/crawlAgentStore";
 
 export const runCrawl = (req: Request , res:Response)=>{
     const siteId = String(req.params.id);

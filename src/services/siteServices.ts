@@ -1,16 +1,27 @@
- interface Site {
-    id : string ;
-    url : string ;
- }
+interface Site {
+    id: string;
+    url: string;
+}
 
- class SiteService {
-    getSite(siteId : string):Site{
+class SiteService {
+
+    private pagesBySite = new Map<string, string[]>();
+
+    getSite(siteId: string): Site {
         return {
-            id : siteId ,
-            url : "https://example.com"
-
+            id: siteId,
+            url: "https://example.com"
         };
     }
- }
 
- export default SiteService ;
+    saveSitePages(siteId: string, pages: string[]): void {
+        this.pagesBySite.set(siteId, pages);
+    }
+
+    getSitePages(siteId: string): string[] {
+        return this.pagesBySite.get(siteId) ?? [];
+    }
+}
+
+export default SiteService;
+

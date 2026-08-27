@@ -3,47 +3,197 @@ import * as cheerio from "cheerio";
 import { Finding } from "@/types/finding";
 export class CrawlAgent {
     private findingsBySite = new Map<string, Finding[]>();
-    async run(siteId : string ,jobId :string ){
-         
-        console.log("CRAWL AGENT CALLED");
-        console.log("SITE ID :" , siteId);
-        console.log(`Job ID : ${jobId}`);
+    private pagesBySite = new Map<string , string[]>();
 
-        const url = "https://example.com";
-        try{
-            console.log("Fetching ", url);
-            
-            const response = await axios.get(url);
+    async run(siteId: string, jobId: string) {
 
-            console.log("Status :", response.status);
+    console.log("CRAWL AGENT CALLED");
+    console.log("SITE ID :", siteId);
+    console.log(`Job ID : ${jobId}`);
 
-            const result = this.analyzeHtml(url , response.data);
+    const startUrl = "https://example.com";
 
-            const findings = result.findings;
-            const links = result.links;
+    const MAX_PAGES = 20;
 
-            const linkFindings = await this.checkLinks(url, links)
-            
-            findings.push(...linkFindings);
-            
-            this.findingsBySite.set(siteId,findings);
-            
-            
+    const queue: string[] = [startUrl];
 
-             console.log("Findings :");
-             console.log(findings) ;
-             return findings ;
-    
-    
+    const visited = new Set<string>();
+
+    const allFindings: Finding[] = [];
+
+    const pages: string[] = [];
+
+    try {
+
+        while (queue.length > 0 && pages.length < MAX_PAGES) {
+
+            const currentUrl = queue.shift()!;
+
+            if (visited.has(currentUrl)) {
+                continue;
+            }
+
+            visited.add(currentUrl);
+
+            console.log(`\nCrawling page: ${currentUrl}`);
+
+            try {
+
+                const response = await axios.get(currentUrl, {
+                    timeout: 10000,
+                    validateStatus: () => true
+                });
+
+                console.log(
+                    `Status : ${response.status}`
+                );
+
+                
+                if (response.status >= 400) {
+
+                    allFindings.push({
+                        pageUrl: currentUrl,
+                        type: "PAGE_ERROR",
+                        severity: "error",
+                        message: `Page returned status ${response.status}`
+                    });
+
+                    continue;
+                }
+
+                pages.push(currentUrl);
+
+                
+                const result = this.analyzeHtml(
+                    currentUrl,
+                    response.data
+                );
+
+                const findings = result.findings;
+                const links = result.links;
+
+                
+                allFindings.push(...findings);
+
+                
+                const linkFindings =
+                    await this.checkLinks(
+                        currentUrl,
+                        links
+                    );
+
+                allFindings.push(...linkFindings);
+
+
             
+                const baseUrl = new URL(currentUrl);
+
+                for (const link of links) {
+
+                    try {
+
+                        const linkUrl = new URL(
+                            link,
+                            currentUrl
+                        );
+
+                        
+                        if (
+                            linkUrl.origin === baseUrl.origin
+                        ) {
+
+                            
+                            linkUrl.hash = "";
+
+                            const normalizedUrl =
+                                linkUrl.toString();
+
+                        
+                            if (
+                                !visited.has(normalizedUrl) &&
+                                !queue.includes(normalizedUrl)
+                            ) {
+
+                                queue.push(normalizedUrl);
+
+                            }
+
+                        }
+
+                    } catch {
+
+            
+                    }
+                }
+
+
+                console.log(
+                    `Queue size : ${queue.length}`
+                );
+
+            } catch (error) {
+
+                console.error(
+                    `Error crawling ${currentUrl}:`,
+                    error
+                );
+
+                allFindings.push({
+                    pageUrl: currentUrl,
+                    type: "PAGE_ERROR",
+                    severity: "error",
+                    message: `Unable to crawl page`
+                });
+            }
         }
-        
-        catch(error){
-            console.error("Crawl error:" , error);
-        }
+
+
+
+        this.findingsBySite.set(
+            siteId,
+            allFindings
+        );
+
+        this.pagesBySite.set(
+            siteId,
+            pages
+        );
+
+
+        console.log("\nCrawl finished");
+
+        console.log(
+            `Pages crawled : ${pages.length}`
+        );
+
+        console.log(
+            `Total findings : ${allFindings.length}`
+        );
+
+        console.log(
+            "Pages found :"
+        );
+
+        console.log(pages);
+
+
+        return allFindings;
+
+
+    } catch (error) {
+
+        console.error(
+            "Crawl error:",
+            error
+        );
     }
+}
     getFindings(siteId:string):Finding[]{
         return this.findingsBySite.get(siteId)?? [];
+    }
+
+    getPages(siteId : string): string[]{
+        return this.pagesBySite.get(siteId)?? [] ;
     }
     private analyzeHtml(pageUrl: string , html : string):{
         findings : Finding[];
@@ -204,3 +354,6 @@ export class CrawlAgent {
       return findings;
    }
 }
+
+export const crawlAgent = new CrawlAgent() ;
+
