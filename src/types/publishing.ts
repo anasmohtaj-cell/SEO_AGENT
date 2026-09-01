@@ -4,7 +4,10 @@ export type ChangeType =
      | "h1"
      | "content"
      | "image"
-     | "structuredData";
+     | "structuredData"
+     | "faq" 
+     | "internalLinking"
+     | "openGraph";
 
      export interface PublishingChange {
         pageId : string ;
@@ -15,9 +18,10 @@ export type ChangeType =
 
      export interface ApplyChangesRequest {
         siteId : string ;
+        pageUrl : string ;
         changes : PublishingChange[] ;
      }
-
+      
      export interface ApplyChangeResult {
         pageId : string ;
         type : ChangeType ;
@@ -27,6 +31,22 @@ export type ChangeType =
 
      export interface PublishingResult {
         siteId : string ;
+        pageUrl: string;
         status : "completed" | "partial" | "failed" ;
         changes : ApplyChangeResult[];
+     }
+     
+     export interface PublishingHistory {
+      historyId : string ;
+      siteId : string ;
+      pageUrl : string ;
+      changes : PublishingChange[];
+      createdAt : Date ;
+     }
+
+     export interface RollbackResult {
+      historyId : string ;
+      siteId : string ;
+      status : "rolled_back" | "failed" ;
+      message : string ;
      }

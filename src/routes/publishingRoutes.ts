@@ -1,11 +1,17 @@
-import { Router } from "express" ;
-import { applyChanges } from "@/controllers/publishingController";
+import { Router } from "express";
 
-const router = Router() ;
+import {
+    applyChanges,
+    rollback,
+    getChangelog
+} from "@/controllers/publishingController";
 
-router.post( 
-    "/publish/apply" ,
-    applyChanges
-);
+const router = Router();
 
-export default router
+router.post("/apply", applyChanges);
+
+router.post("/rollback/:historyId", rollback);
+
+router.get("/changelog/:siteId", getChangelog);
+
+export default router;

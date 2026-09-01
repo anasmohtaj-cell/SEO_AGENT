@@ -2,8 +2,9 @@ import { PublishingChange } from "@/types/publishing";
 
 export interface CMSConnector {
 
-    applyChange(
-        change: PublishingChange
+    applyChanges(
+        pageUrl : string ,
+        change: PublishingChange[]
     ): Promise<void>;
 }
 

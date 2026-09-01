@@ -10,7 +10,11 @@ app.use(express.json());
 
 app.use(crawlRoutes);
 app.use(technicalRoutes);
-app.use(publishingRoutes);
+app.use(
+    "/publish",
+    publishingRoutes
+);
+
 const PORT = 3000;
 
 app.listen(PORT , () =>{

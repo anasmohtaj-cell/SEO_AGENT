@@ -1,19 +1,26 @@
 import {
     ApplyChangesRequest,
-    PublishingResult
+    PublishingResult,
+    PublishingHistory,
+    RollbackResult
 } from "@/types/publishing";
 
-import { CMSConnector } from "@/connectors/CMSConnector";
-import { WordPressConnector } from "@/connectors/wordpress/WordPressConnector";
+import {
+    publishingStore
+} from "@/services/publishingStore";
+
+import {
+    CMSConnector
+} from "@/connectors/CMSConnector";
 
 export class PublishingAgent {
 
-    private cms: CMSConnector;
+    private connector: CMSConnector;
 
-    constructor() {
-
-        this.cms = new WordPressConnector();
-
+    constructor(
+        connector: CMSConnector
+    ) {
+        this.connector = connector;
     }
 
     async applyChanges(
@@ -24,81 +31,170 @@ export class PublishingAgent {
             `Starting publishing for site: ${request.siteId}`
         );
 
-        const results = [];
+        try {
 
-        for (const change of request.changes) {
-
-            try {
-
-                console.log(
-                    `Applying change: ${change.type}`
-                );
-
-                await this.cms.applyChange(change);
-
-                results.push({
-
-                    pageId: change.pageId,
-
-                    type: change.type,
-
-                    status: "applied" as const,
-
-                    message: "Change applied successfully"
-
-                });
-
-            } catch (error) {
-
-                console.error(
-                    `Failed to apply ${change.type}:`,
-                    error
-                );
-
-                results.push({
-
-                    pageId: change.pageId,
-
-                    type: change.type,
-
-                    status: "failed" as const,
-
-                    message: "Failed to apply change"
-
-                });
-
-            }
-        }
-
-        const failed =
-            results.filter(
-                change => change.status === "failed"
+            await this.connector.applyChanges(
+                request.pageUrl,
+                request.changes
             );
 
-        let status: PublishingResult["status"];
+            const result: PublishingResult = {
 
-        if (failed.length === 0) {
+                siteId: request.siteId,
 
-            status = "completed";
+                pageUrl: request.pageUrl,
 
-        } else if (failed.length < results.length) {
+                status: "completed",
 
-            status = "partial";
+                changes: request.changes.map(
+                    change => ({
+                        pageId: change.pageId,
+                        type: change.type,
+                        status: "applied",
+                        message: "Change applied successfully"
+                    })
+                )
+            };
 
-        } else {
+            publishingStore.saveResult(result);
 
-            status = "failed";
+            const history: PublishingHistory = {
 
+                historyId: this.generateHistoryId(),
+
+                siteId: request.siteId,
+
+                pageUrl: request.pageUrl,
+
+                changes: request.changes,
+
+                createdAt: new Date()
+            };
+
+            publishingStore.saveHistory(history);
+
+            console.log(
+                `Publishing completed for site: ${request.siteId}`
+            );
+
+            return result;
+
+        } catch (error) {
+
+            console.error(
+                "Publishing failed:",
+                error
+            );
+
+            const result: PublishingResult = {
+
+                siteId: request.siteId,
+
+                pageUrl: request.pageUrl,
+
+                status: "failed",
+
+                changes: request.changes.map(
+                    change => ({
+                        pageId: change.pageId,
+                        type: change.type,
+                        status: "failed",
+                        message: "Failed to apply change"
+                    })
+                )
+            };
+
+            publishingStore.saveResult(result);
+
+            return result;
+        }
+    }
+
+    async rollback(
+        historyId: string
+    ): Promise<RollbackResult> {
+
+        const history =
+            publishingStore.getHistory(historyId);
+
+        if (!history) {
+
+            return {
+                historyId,
+                siteId: "",
+                status: "failed",
+                message: "History not found"
+            };
         }
 
-        return {
+        try {
 
-            siteId: request.siteId,
+            const rollbackChanges =
+                history.changes.map(
+                    change => ({
+                        ...change,
 
-            status,
+                        newValue: change.oldValue,
 
-            changes: results
+                        oldValue: change.newValue
+                    })
+                );
 
-        };
+            await this.connector.applyChanges(
+                history.pageUrl,
+                rollbackChanges
+            );
+
+            return {
+
+                historyId,
+
+                siteId: history.siteId,
+
+                status: "rolled_back",
+
+                message:
+                    "Previous version restored successfully"
+            };
+
+        } catch (error) {
+
+            console.error(
+                "Rollback failed:",
+                error
+            );
+
+            return {
+
+                historyId,
+
+                siteId: history.siteId,
+
+                status: "failed",
+
+                message:
+                    "Failed to rollback changes"
+            };
+        }
+    }
+
+    getChangelog(
+        siteId: string
+    ): PublishingHistory[] {
+
+        return publishingStore.getSiteHistory(
+            siteId
+        );
+    }
+
+    private generateHistoryId(): string {
+
+        return (
+            Date.now().toString() +
+            "-" +
+            Math.random()
+                .toString(36)
+                .substring(2, 9)
+        );
     }
 }

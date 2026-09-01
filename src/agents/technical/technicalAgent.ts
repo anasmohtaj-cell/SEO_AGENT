@@ -166,7 +166,7 @@ export class TechnicalAgent {
                                             (total : number , item : any)=> total + (item.transferSize ?? 0),0
                                         );
 
-        const imageCount = resources.filter((item : any) => item.resourceType === " Image").length;
+        const imageCount = resources.filter((item : any) => item.resourceType === "Image").length;
                                  
 
         const cacheEnabled = lhr.audits["uses-log-cache-ttl"]?.score === 1 ;
@@ -230,14 +230,19 @@ export class TechnicalAgent {
                 total + page.coreWebVitals.lcp,
             0
         ) / pagesCount;
+        
+        const averageCls =
+           pages.reduce(
+           (total, page) =>
+            total + page.coreWebVitals.cls, 0
+           ) / pagesCount;
 
-        const averageCls = pages.reduce(
-            (total , page)=> total + page.coreWebVitals.cls , 0
-        );
-
-        const averageInp = pages.reduce(
-            (total , page)=> total + page.coreWebVitals.inp ,0
-        );
+        const averageInp =
+            pages.reduce(
+            (total, page) =>
+             total + page.coreWebVitals.inp, 0
+              ) / pagesCount;
+         
 
         const totalJavaScriptSize= pages.reduce(
             (total , page)=> total + page.javascriptSize ,0
